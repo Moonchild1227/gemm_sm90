@@ -1,8 +1,0 @@
-{
-	"InstallScripts" : 
-	[
-		"/root/gemm_sm90/build/cmake_install.cmake",
-		"/root/gemm_sm90/build/csrc/cmake_install.cmake"
-	],
-	"Parallel" : false
-}

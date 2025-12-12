@@ -1,1 +1,0 @@
--I/root/gemm_sm90/thirdpart/cutlass/include -I"/root/miniconda3/lib/python3.12/site-packages/pybind11/include" -isystem "/usr/local/cuda/targets/x86_64-linux/include"

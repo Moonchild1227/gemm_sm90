@@ -33,7 +33,7 @@ using WGMMA_Op = GMMA::MMA_64x64x16_F32BF16BF16_SS<GMMA::Major::K, GMMA::Major::
 // Repeat the 64x64x16 atom to cover a 128x128x64 block.
 using MMA_EU_RepeatT = Shape<Int<2>, Int<2>, Int<4>>;            // (M, N, K)
 using MMA_P_T        = Tile<Int<BLOCK_M>, Int<BLOCK_N>, Int<BLOCK_K>>;
-using TiledMMA       = decltype(make_tiled_mma(WGMMA_Op{}, MMA_EU_RepeatT{}, MMA_P_T{}));
+using TiledMMA       = decltype(make_tiled_mma(WGMMA_Op{}, MMA_EU_RepeatT{}));
 
 // Smem layout for the epilogue (BF16 store). Swizzle to reduce bank conflicts.
 using SmemLayoutC = decltype(composition(
@@ -67,7 +67,7 @@ struct SharedMemoryPlan {
 template <
     typename    Shape_A,    typename    TMA_A,
     typename    Shape_B,    typename    TMA_B,
-    typename    Shape_D,    typename    TMA_D,
+    typename    Shape_D,    typename    TMA_D
 >
 struct TmaParams {
     Shape_A     shape_A;    TMA_A       tma_A;

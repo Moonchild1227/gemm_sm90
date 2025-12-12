@@ -1,6 +1,0 @@
-/root/gemm_sm90/build/CMakeFiles/edit_cache.dir
-/root/gemm_sm90/build/CMakeFiles/rebuild_cache.dir
-/root/gemm_sm90/build/csrc/CMakeFiles/gemm_kernel_obj.dir
-/root/gemm_sm90/build/csrc/CMakeFiles/multi_stage_gemm.dir
-/root/gemm_sm90/build/csrc/CMakeFiles/edit_cache.dir
-/root/gemm_sm90/build/csrc/CMakeFiles/rebuild_cache.dir

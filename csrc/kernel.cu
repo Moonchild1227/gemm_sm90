@@ -1,14 +1,13 @@
 #include "config.hpp"
 
 #include <cutlass/cluster_launch.hpp>
-#include <cutlass/arch/tma_copy.h>
 #include <cutlass/arch/barrier.h>
 #include <cute/algorithm/copy.hpp>
 
 template <typename TmaParams>
 __global__
+__launch_bounds__(128, 1)
 void
-__launch_bound__(128, 1)
 gemm_sm90 (
     __grid_constant__ const TmaParams tma_params
 ) 
