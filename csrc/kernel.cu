@@ -2,6 +2,8 @@
 
 #include <cutlass/cluster_launch.hpp>
 #include <cutlass/arch/tma_copy.h>
+#include <cutlass/arch/barrier.h>
+#include <cute/algorithm/copy.hpp>
 
 template <typename TmaParams>
 __global__
@@ -62,10 +64,18 @@ gemm_sm90 (
             Tensor cur_gA = gA_slice(_, _, itile);
             Tensor cur_gB = gB_slice(_, _, itile);
 
-            cutlass::arch::launch_tma_copy(
-                tma_params.tma_A, cur_gA, sA(_, _, load_buf), plan.bar_a_ready[load_buf]);
-            cutlass::arch::launch_tma_copy(
-                tma_params.tma_B, cur_gB, sB(_, _, load_buf), plan.bar_b_ready[load_buf]);
+            auto thr_tma_a = tma_params.tma_A.get_slice(_0{});
+            cute::copy(
+                tma_params.tma_A.with(reinterpret_cast<typename transac_bar_t::ValueType&>(plan.bar_a_ready[load_buf])),
+                thr_tma_a.partition_S(cur_gA),
+                thr_tma_a.partition_D(sA(_, _, load_buf))
+            );
+            auto thr_tma_b = tma_params.tma_B.get_slice(_0{});
+            cute::copy(
+                tma_params.tma_B.with(reinterpret_cast<typename transac_bar_t::ValueType&>(plan.bar_b_ready[load_buf])),
+                thr_tma_b.partition_S(cur_gB),
+                thr_tma_b.partition_D(sB(_, _, load_buf))
+            );
 
             plan.bar_a_ready[load_buf].arrive_and_expect_tx(BLOCK_M * BLOCK_K * sizeof(bf16));
             plan.bar_b_ready[load_buf].arrive_and_expect_tx(BLOCK_N * BLOCK_K * sizeof(bf16));
@@ -121,8 +131,12 @@ gemm_sm90 (
     if (elect_one_sync()) {
         transac_bar_t bar_d_done;
         bar_d_done.init(1);
-        cutlass::arch::launch_tma_copy(
-            tma_params.tma_D, sC, gD_slice, bar_d_done);
+        auto thr_tma_d = tma_params.tma_D.get_slice(_0{});
+        cute::copy(
+            tma_params.tma_D.with(reinterpret_cast<typename transac_bar_t::ValueType&>(bar_d_done)),
+            thr_tma_d.partition_S(sC),
+            thr_tma_d.partition_D(gD_slice)
+        );
         bar_d_done.arrive_and_expect_tx(BLOCK_M * BLOCK_N * sizeof(bf16));
     }
 

@@ -12,40 +12,6 @@
 
 namespace py = pybind11;
 
-// Host helper to launch the kernel. This builds a very lightweight TmaParams
-// from raw pointers assuming row-major layouts for A (M x K), B (N x K),
-// and D (M x N). The TMA descriptors rely on CUTLASS SM90 utilities.
-template <typename T>
-struct HostTensorDesc {
-    T* ptr;
-    int64_t dim0;
-    int64_t dim1;
-    int64_t stride0;
-    int64_t stride1;
-};
-
-// Build a simple tensor wrapper compatible with the kernel's expectations.
-template <typename T>
-auto make_simple_tensor(HostTensorDesc<T> const& h) {
-    using namespace cute;
-    return make_tensor(make_gmem_ptr(h.ptr),
-                       make_shape(Int<0>{} + h.dim0, Int<0>{} + h.dim1),
-                       make_stride(Int<0>{} + h.stride0, Int<0>{} + h.stride1));
-}
-
-// Build TMA descriptors for A/B/D.
-template <typename T>
-auto make_tma_desc_for_AB(HostTensorDesc<T> const& h) {
-    auto t = make_simple_tensor(h);
-    return cutlass::make_tma_copy(t);
-}
-
-template <typename T>
-auto make_tma_desc_for_D(HostTensorDesc<T> const& h) {
-    auto t = make_simple_tensor(h);
-    return cutlass::make_tma_store(t);
-}
-
 template <typename T>
 struct DeviceBuffers {
     T* dA{nullptr};
@@ -85,31 +51,18 @@ void fill_ones(DeviceBuffers<bf16>& buf, int m, int n, int k) {
 
 // Core runner shared by both bindings.
 py::dict run_gemm(int m, int n, int k, int warmup, int iters, bool copy_back) {
-    using namespace cute;
-
     DeviceBuffers<bf16> buf = alloc_buffers(m, n, k);
     fill_ones(buf, m, n, k);
 
-    HostTensorDesc<bf16> hA{buf.dA, m, k, k, 1};
-    HostTensorDesc<bf16> hB{buf.dB, n, k, k, 1};
-    HostTensorDesc<bf16> hD{buf.dD, m, n, n, 1};
+    SimpleParams params{
+        buf.dA, buf.dB, buf.dD,
+        m, n, k,
+        k, k, n
+    };
 
-    auto tma_A = make_tma_desc_for_AB(hA);
-    auto tma_B = make_tma_desc_for_AB(hB);
-    auto tma_D = make_tma_desc_for_D(hD);
-
-    auto shape_A = make_shape(Int<0>{} + m, Int<0>{} + k);
-    auto shape_B = make_shape(Int<0>{} + n, Int<0>{} + k);
-    auto shape_D = make_shape(Int<0>{} + m, Int<0>{} + n);
-
-    TmaParams<decltype(shape_A), decltype(tma_A),
-              decltype(shape_B), decltype(tma_B),
-              decltype(shape_D), decltype(tma_D)>
-        params{shape_A, tma_A, shape_B, tma_B, shape_D, tma_D};
-
-    dim3 block(128);
+    dim3 block(BLOCK_N, BLOCK_M);
     dim3 grid((n + BLOCK_N - 1) / BLOCK_N, (m + BLOCK_M - 1) / BLOCK_M);
-    size_t smem = SMEM_SIZE_BYTES;
+    size_t smem = 0;
 
     for (int i = 0; i < warmup; ++i) {
         gemm_sm90<<<grid, block, smem>>>(params);

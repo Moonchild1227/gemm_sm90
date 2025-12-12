@@ -2,7 +2,11 @@
 
 #include <cutlass/numeric_types.h>
 #include <cutlass/arch/barrier.h>
+#include <cutlass/barrier.h>
 #include <cute/tensor.hpp>
+#include <cute/arch/cluster_sm90.hpp>
+#include <cute/arch/copy.hpp>
+#include <cute/atom/copy_traits.hpp>
 
 using namespace cute;
 using bf16          = cutlass::bfloat16_t;
